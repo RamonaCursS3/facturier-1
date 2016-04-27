@@ -67,7 +67,7 @@ class Feature
      */
     public function __toString()
     {        
-        return $this->value;
+        return $this->en;
     }    
 
     /**

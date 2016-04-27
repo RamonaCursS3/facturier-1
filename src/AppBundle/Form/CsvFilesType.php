@@ -4,6 +4,7 @@ namespace AppBundle\Form;
 
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\FileType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -21,7 +22,12 @@ class CsvFilesType extends AbstractType
             ->add('name', TextType::class, array(
                 'translation_domain'=>'AppBundle',
             ))
-            ->add('tip', TextType::class, array(
+            ->add('tip', ChoiceType::class, array(
+                'choices' => array(
+                    'Csv product' => 'productCsv',
+                    'Csv feature' => 'featureCsv',
+                    'Csv stoc' => 'productStocCsv'
+                ),
                 'translation_domain'=>'AppBundle',
             ))
             ->add('file', FileType::class, array(
