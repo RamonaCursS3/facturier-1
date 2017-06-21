@@ -299,7 +299,7 @@ class CsvFilesController extends Controller
                     
                     $unitMeasure = $em->getRepository('AppBundle:UnitMeasure')->find(1);
                     if($unitMeasure){
-                       $product->setIdUnitMeasure($unitMeasure);
+                       $product->setUnitMeasure($unitMeasure);
                     }                    
                     
                     if(array_key_exists(13, $line))
@@ -331,7 +331,7 @@ class CsvFilesController extends Controller
      * Process entities from csv.
      *
      */
-    public function featureCsvAction(Request $request, $csv)
+    public function productStocCsvAction(Request $request, $csv)
     {
         $em = $this->getDoctrine()->getManager();
         
@@ -339,82 +339,70 @@ class CsvFilesController extends Controller
         
         $my_switch = true;
         $wrong_csv_lines = '';
-        $ktap_unique_material = array();
-        $ktap_unique_color = array();
-        $ktap_unique_size = array();
         $today = new \DateTime("now"); 
         
         if (($handle = fopen($my_file, "r")) !== FALSE) {
             $nr_crt = 1;
             while (($line = fgetcsv($handle,0,";")) !== FALSE) {   
+              // $line = explode(';', $line);
                 
-                if(count($line)<=1) continue; //separator gresit => sarim linia
+                $line = array_map('trim', $line);
                 
-                // skip fisrt line
-                if($my_switch){
-                  $my_switch = false;
-                  continue;
+                if(count($line) !== 2) {
+                    
+                    $erori = 'Separator gresit!';
+                    continue;
+                    
+                } else {
+                    
+                    $insert=true;                    
+
+                    $cod = trim($line[0]);
+                    $cant = trim($line[1]);
+                    $warehouseId = 2;
+                    $ktnow = new \DateTime('now');  
+                    
+                    //look for product-warehouse
+                    $productWarehouse=array();
+                    $qb = $em->createQueryBuilder();
+                    $qb -> select(array('iw','i','w'))                        
+                                ->from('AppBundle:ProductWarehouse', 'iw')       
+                                ->leftJoin('iw.product', 'i')
+                                ->leftJoin('iw.warehouse', 'w')
+                                ->andWhere($qb->expr()->eq('i.reference', '?1'))  
+                                ->andWhere($qb->expr()->eq('w.id', '?2'))  
+                                ->setParameter(1, $cod)
+                                ->setParameter(2, $warehouseId);
+
+                    $productWarehouse = $qb->getQuery()->getResult();
+                    
+                    if($productWarehouse){                        
+                        foreach($productWarehouse as $entity){
+                            $entity->setQuantity($cant);
+                            $entity->setDatUpd($ktnow);
+                            $insert=false;
+                            break;
+                        }
+                    }
+                    
+                    $product = $em->getRepository('AppBundle:Product')->findOneBy(array('reference'=>$cod));
+                    $warehouse = $em->getRepository('AppBundle:Warehouse')->find(2);
+                    
+                    // adaugam in ProductWarehouse
+                    if($insert && $product && $warehouse){  
+                        $productWarehouse = new ProductWarehouse();  
+                        $productWarehouse->setProduct($product);                       
+                        $productWarehouse->setWarehouse($warehouse);  
+                        $productWarehouse->setQuantity($line[1]);  
+                        $productWarehouse->setDatCre($ktnow); 
+                        $productWarehouse->setDatUpd($ktnow); 
+                        $em->persist($productWarehouse);  
+                    }   
+                    // pentru unicitate adaugam in $ktap_unique_smbid
+                    $ktap_unique_smbid[] = $cod; 
                 }
                 
-                $line = array_map(function ($v){
-                    
-                    return mb_convert_case(trim($v), MB_CASE_LOWER, "UTF-8"); 
-                    
-                }, $line);
-                
-                if ($line[4] && !in_array($line[4],$ktap_unique_material)) {
-                    $ktap_unique_material[] = $line[4];
-                    
-                    $fn = $em->getRepository('AppBundle:FeatureName')->find(1); // material
-                    
-                    // add new feature
-                    if(!$material = $em->getRepository('AppBundle:Feature')->findOneBy(array('name'=>$fn,'bg'=>$line[4],'ro'=>$line[5],'en'=>$line[6]))){
-                        $material = new Feature;
-                    }
-                       
-                    $material->setName($fn);
-                    $material->setBg($line[4]);
-                    $material->setRo($line[5]);
-                    $material->setEn($line[6]);
-                    $em->persist($material);
-                    
-                }   
-                
-                if ($line[7] && !in_array($line[7],$ktap_unique_color)) {
-                    $ktap_unique_color[] = $line[7];   
-                    
-                    $fn = $em->getRepository('AppBundle:FeatureName')->find(2); // color
-                    
-                    // add new feature
-                    if(!$color = $em->getRepository('AppBundle:Feature')->findOneBy(array('name'=>$fn,'bg'=>$line[7],'ro'=>$line[8],'en'=>$line[9]))){
-                        $color = new Feature;
-                    }
-                    $color->setName($fn);
-                    $color->setBg($line[7]);
-                    $color->setRo($line[8]);
-                    $color->setEn($line[9]);
-                    $em->persist($color);                    
-                    
-                }                    
-                
-                if ($line[10] && !in_array($line[10],$ktap_unique_size)) {
-                    $ktap_unique_size[] = $line[10]; 
-                    
-                    $fn = $em->getRepository('AppBundle:FeatureName')->find(3); // size
-                    
-                    // add new feature
-                    if(!$size = $em->getRepository('AppBundle:Feature')->findOneBy(array('name'=>$fn,'bg'=>$line[10],'ro'=>$line[11],'en'=>$line[12]))){
-                        $size = new Feature;
-                    }
-                    $size->setName($fn);
-                    $size->setBg($line[10]);
-                    $size->setRo($line[11]);
-                    $size->setEn($line[12]);
-                    $em->persist($size);      
-                    
-                }
-                
-                $nr_crt++;                
+           
             }
             
             fclose($handle);
@@ -426,6 +414,5 @@ class CsvFilesController extends Controller
         $em->clear(); 
         
         return $wrong_csv_lines;
-    }       
-    
+    }         
 }

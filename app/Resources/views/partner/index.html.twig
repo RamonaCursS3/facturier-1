@@ -35,7 +35,7 @@
                         <td>{{ partner.iban }}</td>
                         <td>
                             {%for address in partner.addresses%}
-                                <a href="{{ path('address_show', { 'id': address.id }) }}">{{address }}</a>
+                                <a href="{{ path('address_show', { 'id': address.id }) }}">{{ address }}</a>
                             {%endfor%}
                         </td>
                                                
